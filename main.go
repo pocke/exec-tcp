@@ -30,30 +30,29 @@ func main() {
 			continue
 		}
 
-		go func(conn net.Conn) {
-			defer conn.Close()
-			v := make([]interface{}, 2)
-			err := json.NewDecoder(conn).Decode(&v)
-			if err != nil {
-				log.Println(err)
-				return
-			}
-			fmt.Println(v)
-			cmd, err := getBodyFromVimChan(v)
-			if err != nil {
-				log.Println(err)
-				return
-			}
+		defer conn.Close()
+		v := make([]interface{}, 2)
+		err = json.NewDecoder(conn).Decode(&v)
+		if err != nil {
+			log.Println(err)
+			return
+		}
 
-			fmt.Println("> " + cmd)
-			c := exec.Command("bash", "-c", cmd)
-			c.Stderr = os.Stderr
-			c.Stdout = os.Stdout
-			c.Stdin = os.Stdin
-			if err := c.Run(); err != nil {
-				log.Println(err)
-				return
-			}
-		}(conn)
+		cmd, err := getBodyFromVimChan(v)
+		if err != nil {
+			log.Println(err)
+			return
+		}
+
+		fmt.Println("> " + cmd)
+		c := exec.Command("bash", "-c", cmd)
+		c.Stderr = os.Stderr
+		c.Stdout = os.Stdout
+		c.Stdin = os.Stdin
+		if err := c.Run(); err != nil {
+			log.Println(err)
+			return
+		}
+		fmt.Println("> done")
 	}
 }
