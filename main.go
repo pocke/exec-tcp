@@ -7,8 +7,16 @@ import (
 	"net"
 	"os"
 	"os/exec"
-	"strings"
+	"reflect"
 )
+
+func getBodyFromVimChan(ch interface{}) (string, error) {
+	s := reflect.ValueOf(ch)
+	if s.Kind() != reflect.Slice {
+		return "", fmt.Errorf("%v is not slice", ch)
+	}
+	return s.Index(1).Interface().(string), nil
+}
 
 func main() {
 	l, err := net.Listen("tcp", ":8888")
@@ -24,15 +32,21 @@ func main() {
 
 		go func(conn net.Conn) {
 			defer conn.Close()
-			cmd := make([]string, 0)
-			err := json.NewDecoder(conn).Decode(&cmd)
+			v := make([]interface{}, 2)
+			err := json.NewDecoder(conn).Decode(&v)
+			if err != nil {
+				log.Println(err)
+				return
+			}
+			fmt.Println(v)
+			cmd, err := getBodyFromVimChan(v)
 			if err != nil {
 				log.Println(err)
 				return
 			}
 
-			fmt.Println("> " + strings.Join(cmd, " "))
-			c := exec.Command(cmd[0], cmd[1:]...)
+			fmt.Println("> " + cmd)
+			c := exec.Command("bash", "-c", cmd)
 			c.Stderr = os.Stderr
 			c.Stdout = os.Stdout
 			c.Stdin = os.Stdin
