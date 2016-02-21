@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net"
 	"os"
@@ -24,35 +25,41 @@ func main() {
 		log.Fatal(err)
 	}
 
+	fmt.Print("> ")
 	for {
 		conn, err := l.Accept()
 		if err != nil {
-			continue
-		}
-
-		defer conn.Close()
-		v := make([]interface{}, 2)
-		err = json.NewDecoder(conn).Decode(&v)
-		if err != nil {
-			log.Println(err)
 			return
 		}
 
-		cmd, err := getBodyFromVimChan(v)
-		if err != nil {
+		if err := Exec(conn); err != nil {
 			log.Println(err)
-			return
 		}
-
-		fmt.Println("> " + cmd)
-		c := exec.Command("bash", "-c", cmd)
-		c.Stderr = os.Stderr
-		c.Stdout = os.Stdout
-		c.Stdin = os.Stdin
-		if err := c.Run(); err != nil {
-			log.Println(err)
-			return
-		}
-		fmt.Println("> done")
+		fmt.Print("> ")
 	}
+}
+
+func Exec(r io.ReadCloser) error {
+	defer r.Close()
+
+	v := make([]interface{}, 2)
+	err := json.NewDecoder(r).Decode(&v)
+	if err != nil {
+		return err
+	}
+
+	cmd, err := getBodyFromVimChan(v)
+	if err != nil {
+		return err
+	}
+
+	fmt.Println(cmd)
+	c := exec.Command("bash", "-c", cmd)
+	c.Stderr = os.Stderr
+	c.Stdout = os.Stdout
+	c.Stdin = os.Stdin
+	if err := c.Run(); err != nil {
+		return err
+	}
+	return nil
 }
